@@ -1,0 +1,46 @@
+---
+- name: Deploy web app
+  hosts: webservers
+  become: true
+  vars:
+    web_src_dir: "{{ lookup('env', 'WORKSPACE') }}/web-app-repo"
+    nginx_root: /var/www/html
+  tasks:
+    - name: Ensure APT cache updated
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Ensure nginx running
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Create web root
+      file:
+        path: "{{ nginx_root }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Deploy site content
+      copy:
+        src: "{{ web_src_dir }}/"
+        dest: "{{ nginx_root }}/"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      notify: reload nginx
+
+  handlers:
+    - name: reload nginx
+      service:
+        name: nginx
+        state: restarted
